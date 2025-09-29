@@ -26,3 +26,10 @@ android {
 dependencies {
     implementation project(':FtcRobotController')
 }
+configurations.all {
+    resolutionStrategy {
+        force "org.jetbrains.kotlin:kotlin-stdlib:1.6.21"
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.6.21"
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21"
+    }
+}
