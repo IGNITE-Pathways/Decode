@@ -1,17 +1,17 @@
-package OpModes;
+package OpModes.IndividualTest;
 
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-@TeleOp(name="Limelight", group="Linear OpMode")
+@TeleOp(name="Limelight Individual Test", group="Main")
 public class Limelight extends OpMode {
     private Limelight3A limelight;
 
     @Override
     public void init() {
-        limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        limelight = hardwareMap.get(Limelight3A.class, "Individual Test");
         if (limelight != null) {
             limelight.setPollRateHz(100);
             limelight.start();

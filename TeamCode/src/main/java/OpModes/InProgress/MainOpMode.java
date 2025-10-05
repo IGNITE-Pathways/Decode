@@ -6,7 +6,8 @@
 //import ProgrammingBoard.ProgrammingBoard;
 //
 //
-//public class DriveTrain extends OpMode {
+ //@TeleOp
+//public class MainOpMode extends OpMode {
 //
 //    ProgrammingBoard board = new ProgrammingBoard();
 //
@@ -15,7 +16,7 @@
 //    double rightFrontPower = 0;
 //    double rightBackPower = 0;
 //
-//    private double robotSpeed = 1.0;
+//    private double robotSpeed = 0.7;
 //
 //
 //    @Override

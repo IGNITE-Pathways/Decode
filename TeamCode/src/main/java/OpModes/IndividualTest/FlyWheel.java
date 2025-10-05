@@ -1,14 +1,14 @@
-package OpModes;
+package OpModes.IndividualTest;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import ProgrammingBoard.ProgrammingBoard;
+import ProgrammingBoard.ProgrammingBoardShooter;
 
-@TeleOp(name="FlyWheel Control", group="Linear OpMode")
+@TeleOp(name="FlyWheel Individual Control", group="Individual Test")
 public class FlyWheel extends OpMode {
 
-    ProgrammingBoard board = new ProgrammingBoard();
+    ProgrammingBoardShooter board = new ProgrammingBoardShooter();
 
     private double flywheelPower = 0.1; // starting power
     private boolean spinning = false;   // flywheel state
@@ -28,7 +28,7 @@ public class FlyWheel extends OpMode {
         }
 
         // Decrease power with X
-        if (gamepad1.x) {
+        if (gamepad1.cross) {
             flywheelPower -= 0.1;
         }
 
