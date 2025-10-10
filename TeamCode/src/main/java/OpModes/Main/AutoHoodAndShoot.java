@@ -6,7 +6,6 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.Servo;
 import ProgrammingBoard.ProgrammingBoardShooter;
-import Constants.Shooter;
 
 @TeleOp(name = "Auto Hood and Shoot", group = "Main")
 public class AutoHoodAndShoot extends LinearOpMode {
@@ -15,19 +14,28 @@ public class AutoHoodAndShoot extends LinearOpMode {
     private Servo hoodServo;
     private ProgrammingBoardShooter board = new ProgrammingBoardShooter();
 
+    // --- State ---
     private double servoPosition = 0.0;
-    private static final double SERVO_STEP_PER_FOOT = 0.1; // servo per foot
     private double flywheelPower = 0.0;
+    private boolean hoodActive = true;
+    private boolean shooterActive = true;
+    private boolean bothActive = true;
+
+    // --- Constants ---
+    private static final double SERVO_STEP_PER_FOOT = 0.13;
+    private static final double APRILTAG_REAL_HEIGHT_METERS = 0.2032;; // 8 inches before now i made it 30
+    private static final double CAMERA_VERTICAL_FOV_DEGREES = 49.5;   // Limelight 3A vertical FOV
+    private static final int IMAGE_WIDTH_PIXELS = 1280;
+    private static final int IMAGE_HEIGHT_PIXELS = 720;
 
     @Override
     public void runOpMode() {
-        // Init hardware
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         hoodServo = hardwareMap.get(Servo.class, "hoodservo");
         board.initializeComponents(hardwareMap);
         limelight.start();
 
-        telemetry.addLine("Auto Hood and Shoot Ready. Press Play.");
+        telemetry.addLine("Auto Hood + Shoot Ready");
         telemetry.update();
         waitForStart();
 
@@ -35,59 +43,72 @@ public class AutoHoodAndShoot extends LinearOpMode {
             LLResult result = limelight.getLatestResult();
             double distanceFeet = -1;
 
+            // --- Distance estimation via TA (AprilTag area) ---
             if (result != null && result.isValid()) {
-                double verticalOffsetDeg = result.getTy();
-                double totalAngleDeg = Shooter.CAMERA_MOUNT_ANGLE_DEGREES + verticalOffsetDeg;
-                double totalAngleRad = Math.toRadians(totalAngleDeg);
+                double taPercent = result.getTa();
+                if (taPercent > 0.0) {
+                    double pixelArea = (taPercent / 100.0) * (IMAGE_WIDTH_PIXELS * IMAGE_HEIGHT_PIXELS);
+                    double tagPixelHeight = Math.sqrt(pixelArea);
+                    double focalPx = (IMAGE_HEIGHT_PIXELS / 2.0)
+                            / Math.tan(Math.toRadians(CAMERA_VERTICAL_FOV_DEGREES / 2.0));
 
-                double distanceMeters = (Shooter.TARGET_HEIGHT_METERS - Shooter.CAMERA_HEIGHT_METERS)
-                        / Math.tan(totalAngleRad);
-                distanceFeet = distanceMeters * 3.28084;
+                    double distanceMeters = (APRILTAG_REAL_HEIGHT_METERS * focalPx) / tagPixelHeight;
+                    distanceFeet = distanceMeters * 3.28084;
 
-                telemetry.addData("Distance (ft)", "%.2f", distanceFeet);
-                telemetry.addData("Vertical Offset (deg)", "%.2f", verticalOffsetDeg);
-                telemetry.addData("Total Angle (deg)", "%.2f", totalAngleDeg);
+                    telemetry.addData("Distance (ft) [TA]", "%.2f", distanceFeet);
+                } else {
+                    telemetry.addLine("No valid target area data");
+                }
             } else {
                 telemetry.addLine("No valid target detected");
             }
 
-            // LEFT TRIGGER → Align hood
-            if (gamepad1.left_trigger > 0.2 && distanceFeet > 0) {
-                servoPosition = SERVO_STEP_PER_FOOT * distanceFeet;
-                servoPosition = Math.max(0.0, Math.min(1.0, servoPosition));
-                hoodServo.setPosition(servoPosition);
-                telemetry.addData("Hood Aligned", "Set to %.2f based on %.2f ft", servoPosition, distanceFeet);
-            }
-
-            // RIGHT TRIGGER → Adjust flywheel power based on distance
-            if (gamepad1.right_trigger > 0.2 && distanceFeet > 0) {
-                flywheelPower = Math.min(1.0, 0.1 * distanceFeet);
-                board.flyWheelMotor.setPower(flywheelPower);
-                telemetry.addData("Shooter Active", "Power: %.2f (%.2f ft)", flywheelPower, distanceFeet);
-            } else if (gamepad1.right_trigger < 0.2 && gamepad1.square == false) {
-                board.flyWheelMotor.setPower(0);
-            }
-
-            // SQUARE → Do both automatically (hood + shooter)
+            // --- X / Square button → both hood + shooter active ---
             if (gamepad1.square && distanceFeet > 0) {
-                servoPosition = SERVO_STEP_PER_FOOT * distanceFeet;
-                servoPosition = Math.max(0.0, Math.min(1.0, servoPosition));
-                hoodServo.setPosition(servoPosition);
-
-                flywheelPower = Math.min(1.0, 0.1 * distanceFeet);
-                board.flyWheelMotor.setPower(flywheelPower);
-
-                telemetry.addData("Auto Mode", "Hood: %.2f | Power: %.2f | Distance: %.2f ft",
-                        servoPosition, flywheelPower, distanceFeet);
-                sleep(200); // debounce
+                bothActive = true;
+                hoodActive = true;
+                shooterActive = true;
             }
 
-            telemetry.addData("Current Servo Pos", "%.2f", servoPosition);
-            telemetry.addData("Current Shooter Power", "%.2f", flywheelPower);
+            // --- Left Trigger → hood active ---
+            if (gamepad1.left_trigger > 0.2 && distanceFeet > 0) {
+                hoodActive = true;
+            }
+
+            // --- Right Trigger → shooter active ---
+            if (gamepad1.right_trigger > 0.2 && distanceFeet > 0) {
+                shooterActive = true;
+            }
+
+            // --- Update hood if active ---
+            if (hoodActive && distanceFeet > 0) {
+                servoPosition = SERVO_STEP_PER_FOOT * (distanceFeet-1);
+                servoPosition = Math.max(0.0, Math.min(1.0, servoPosition));
+                hoodServo.setPosition(servoPosition);
+            }
+
+            // --- Update shooter if active ---
+            if (shooterActive && distanceFeet > 0) {
+                    flywheelPower = Math.min(1.0, ((0.13 * distanceFeet)));
+
+                board.flyWheelMotor.setPower(flywheelPower);
+                board.flyWheelMotor2.setPower(flywheelPower);
+            }
+
+            // --- Keep servo powered always (holding position) ---
+            hoodServo.setPosition(servoPosition);
+
+            telemetry.addData("Servo Pos", "%.2f", servoPosition);
+            telemetry.addData("Shooter Power", "%.2f", flywheelPower);
+            telemetry.addData("Hood Active", hoodActive);
+            telemetry.addData("Shooter Active", shooterActive);
+            telemetry.addData("Both Active", bothActive);
             telemetry.update();
         }
 
-        limelight.stop();
+        // Stop shooter at end of OpMode
         board.flyWheelMotor.setPower(0);
+        board.flyWheelMotor2.setPower(0);
+        limelight.stop();
     }
 }

@@ -32,6 +32,7 @@ public class ManualHoodAndShoot extends OpMode {
 
     @Override
     public void loop() {
+
         // ----- Servo Control (Triggers) -----
         if (gamepad1.right_trigger > 0.1) { // RT pressed
             servoPosition += SERVO_INCREMENT;
@@ -70,7 +71,7 @@ public class ManualHoodAndShoot extends OpMode {
 
         // Apply power to flywheel
         board.flyWheelMotor.setPower(spinning ? flywheelPower : 0);
-
+        board.flyWheelMotor2.setPower(spinning ? flywheelPower : 0);
         // ----- Telemetry -----
         telemetry.addData("Hood Servo Pos", "%.2f", servoPosition);
         telemetry.addData("Flywheel Power", "%.2f", flywheelPower);

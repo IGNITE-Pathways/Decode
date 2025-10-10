@@ -1,5 +1,6 @@
 package OpModes.InProgress;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -8,8 +9,8 @@ import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
-
-@TeleOp(name = "Shooter Auto Index", group = "Linear OpMode")
+@Disabled
+@TeleOp(name = "Main Op Mode", group = "Linear OpMode")
 public class IndexingOrShootSystem extends LinearOpMode {
     ProgrammingBoardShooter board = new ProgrammingBoardShooter();
     private NormalizedColorSensor test_color;
@@ -17,6 +18,7 @@ public class IndexingOrShootSystem extends LinearOpMode {
     int flag = 0;
     boolean imperfect = false;
     String[] need_colors = {"purple", "purple", "green"}; // pull pattern
+
     @Override
     public void runOpMode() {
         test_color = hardwareMap.get(NormalizedColorSensor.class, "shooterSensor");

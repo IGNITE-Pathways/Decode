@@ -46,7 +46,10 @@ public class FlyWheel extends OpMode {
         }
 
         // Apply power to flywheel
+        /*
         board.flyWheelMotor.setPower(spinning ? flywheelPower : 0);
+        */
+        board.flyWheelMotor2.setPower(spinning ? flywheelPower : 0);
 
         // Telemetry
         telemetry.addData("Flywheel Power", "%.2f", flywheelPower);

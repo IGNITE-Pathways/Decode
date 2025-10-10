@@ -14,7 +14,7 @@ public class ColorSensor extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        test_color = hardwareMap.get(NormalizedColorSensor.class, "test_color");
+        test_color = hardwareMap.get(NormalizedColorSensor.class, "shooterSensor");
 
         waitForStart();
 
