@@ -89,7 +89,7 @@ public class AutoHoodAndShoot extends LinearOpMode {
 
             // --- Update shooter if active ---
             if (shooterActive && distanceFeet > 0) {
-                    flywheelPower = Math.min(1.0, ((0.13 * distanceFeet)));
+                    flywheelPower = Math.min(1.0, ((0.077 * distanceFeet)));
 
                 board.flyWheelMotor.setPower(flywheelPower);
                 board.flyWheelMotor2.setPower(flywheelPower);

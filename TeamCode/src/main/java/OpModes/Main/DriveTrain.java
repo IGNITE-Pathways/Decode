@@ -14,20 +14,6 @@ public class DriveTrain extends OpMode {
     DcMotor frontRightDrive;
     DcMotor backLeftDrive;
     DcMotor backRightDrive;
-    private Limelight3A limelight;
-    private Servo turretServo;
-
-    // --- Tunable constants ---
-    private static final double TOLERANCE = 15.6;
-    private static final double ADJUST_SPEED = 0.007;
-    private static final double SEARCH_SPEED = 0.0007;
-    private static final double SERVO_MIN = 0.0;
-    private static final double SERVO_MAX = 1.0;
-
-    private double servoPos = 0.5;
-    private double lastTx = 0;
-    private boolean searchRight = true;
-    private boolean aligned = false;  // ✅ new flag
 
     @Override
     public void init() {

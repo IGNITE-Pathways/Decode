@@ -56,6 +56,7 @@ public class IndexingOrShootSystem extends LinearOpMode {
                     imperfect = false;
                 }
                 else{
+                    //set hood positition low and shoot so it lands in intake
                     board.flyWheelMotor.setPower(0.6);
                     sleep(3000);
                     board.flyWheelMotor.setPower(0);
