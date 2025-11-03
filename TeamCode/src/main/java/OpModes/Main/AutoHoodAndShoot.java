@@ -22,7 +22,7 @@ public class AutoHoodAndShoot extends LinearOpMode {
     private boolean bothActive = true;
 
     // --- Constants ---
-    private static final double SERVO_STEP_PER_FOOT = 0.13;
+    private static final double SERVO_STEP_PER_FOOT = 0.09;
     private static final double APRILTAG_REAL_HEIGHT_METERS = 0.2032;; // 8 inches before now i made it 30
     private static final double CAMERA_VERTICAL_FOV_DEGREES = 49.5;   // Limelight 3A vertical FOV
     private static final int IMAGE_WIDTH_PIXELS = 1280;
@@ -89,7 +89,7 @@ public class AutoHoodAndShoot extends LinearOpMode {
 
             // --- Update shooter if active ---
             if (shooterActive && distanceFeet > 0) {
-                    flywheelPower = Math.min(1.0, ((0.077 * distanceFeet)));
+                    flywheelPower = Math.min(1.0, ((0.085 * distanceFeet)));
 
                 board.flyWheelMotor.setPower(flywheelPower);
                 board.flyWheelMotor2.setPower(flywheelPower);

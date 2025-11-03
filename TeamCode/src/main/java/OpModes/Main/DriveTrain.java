@@ -6,6 +6,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 @TeleOp(name = "Mecanum Drive Simple", group = "Main")
 public class DriveTrain extends OpMode {
@@ -14,6 +15,8 @@ public class DriveTrain extends OpMode {
     DcMotor frontRightDrive;
     DcMotor backLeftDrive;
     DcMotor backRightDrive;
+
+    boolean crossPressedLast = false; // To prevent retriggering
 
     @Override
     public void init() {
@@ -25,13 +28,19 @@ public class DriveTrain extends OpMode {
         // Correct motor directions for standard mecanum
         frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
         backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
-        frontRightDrive.setDirection(DcMotor.Direction.REVERSE);
+        frontRightDrive.setDirection(DcMotor.Direction.FORWARD);
         backRightDrive.setDirection(DcMotor.Direction.FORWARD);
     }
 
     @Override
     public void loop() {
-        // Left stick = translation, right stick = rotation
+        // Check if cross is pressed and wasn't pressed last loop
+        if (gamepad1.cross && !crossPressedLast) {
+            turnAndMoveBackwardMecanum(135, 0.6, 2000); // 135° backward turn, 0.6 power, 2 seconds
+        }
+        crossPressedLast = gamepad1.cross; // update state
+
+        // Standard mecanum driving
         double forward = -gamepad1.left_stick_y;   // forward/back
         double right = gamepad1.left_stick_x;      // strafe
         double rotate = gamepad1.right_stick_x;    // turn
@@ -69,5 +78,56 @@ public class DriveTrain extends OpMode {
         telemetry.addData("BL", backLeftPower);
         telemetry.addData("BR", backRightPower);
         telemetry.update();
+    }
+
+    // Function for rotating backward while moving backward along a curved path
+    public void turnAndMoveBackwardMecanum(double angleDegrees, double power, long durationMs) {
+        ElapsedTime timer = new ElapsedTime();
+        timer.reset();
+
+        double initialTurnPower = angleDegrees / 180.0; // full rotation at start
+
+        while (opModeIsActive() && timer.milliseconds() < durationMs) {
+            double t = timer.milliseconds() / (double) durationMs; // 0.0 -> 1.0
+            double rotate = -initialTurnPower * (1.0 - t); // gradually reduce rotation
+
+            double forward = -power; // always moving backward
+            double right = 0;        // no strafe
+
+            // Mecanum wheel math for backward + turning
+            double frontLeftPower = forward + right + rotate;
+            double frontRightPower = forward - right - rotate;
+            double backLeftPower = forward - right + rotate;
+            double backRightPower = forward + right - rotate;
+
+            // Normalize powers
+            double max = Math.max(
+                    Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower)),
+                    Math.max(Math.abs(backLeftPower), Math.abs(backRightPower))
+            );
+            if (max > 1.0) {
+                frontLeftPower /= max;
+                frontRightPower /= max;
+                backLeftPower /= max;
+                backRightPower /= max;
+            }
+
+            // Apply motor powers
+            frontLeftDrive.setPower(frontLeftPower);
+            frontRightDrive.setPower(frontRightPower);
+            backLeftDrive.setPower(backLeftPower);
+            backRightDrive.setPower(backRightPower);
+        }
+
+        // Stop all motors after action
+        frontLeftDrive.setPower(0);
+        frontRightDrive.setPower(0);
+        backLeftDrive.setPower(0);
+        backRightDrive.setPower(0);
+    }
+
+    // Optional safety for opMode
+    public boolean opModeIsActive() {
+        return true; // In TeleOp, loop runs continuously
     }
 }
