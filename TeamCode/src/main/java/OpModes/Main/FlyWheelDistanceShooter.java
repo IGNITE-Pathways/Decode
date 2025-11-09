@@ -5,13 +5,13 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import ProgrammingBoard.ProgrammingBoardShooter;
+import ProgrammingBoard.ProgrammingBoardOTHER;
 import Constants.Shooter;
 
 @TeleOp(name = "FlyWheel Distance Shooter", group = "Main")
 public class FlyWheelDistanceShooter extends OpMode {
 
-    private ProgrammingBoardShooter board = new ProgrammingBoardShooter();
+    private ProgrammingBoardOTHER board = new ProgrammingBoardOTHER();
     private Limelight3A limelight;
 
     private double flywheelPower = 0.1;  // starting power

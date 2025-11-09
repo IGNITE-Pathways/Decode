@@ -4,7 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import ProgrammingBoard.ProgrammingBoardShooter;
+import ProgrammingBoard.ProgrammingBoardOTHER;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 
@@ -12,7 +12,7 @@ import org.firstinspires.ftc.robotcore.external.JavaUtil;
 @Disabled
 @TeleOp(name = "Main Op Mode", group = "Linear OpMode")
 public class IndexingOrShootSystem extends LinearOpMode {
-    ProgrammingBoardShooter board = new ProgrammingBoardShooter();
+    ProgrammingBoardOTHER board = new ProgrammingBoardOTHER();
     private NormalizedColorSensor test_color;
 
     int flag = 0;

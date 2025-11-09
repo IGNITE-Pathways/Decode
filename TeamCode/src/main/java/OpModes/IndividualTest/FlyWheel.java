@@ -3,12 +3,12 @@ package OpModes.IndividualTest;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import ProgrammingBoard.ProgrammingBoardShooter;
+import ProgrammingBoard.ProgrammingBoardOTHER;
 
 @TeleOp(name="FlyWheel Individual Control", group="Individual Test")
 public class FlyWheel extends OpMode {
 
-    ProgrammingBoardShooter board = new ProgrammingBoardShooter();
+    ProgrammingBoardOTHER board = new ProgrammingBoardOTHER();
 
     private double flywheelPower = 0.1; // starting power
     private boolean spinning = false;   // flywheel state

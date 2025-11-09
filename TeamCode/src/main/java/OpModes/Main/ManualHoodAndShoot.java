@@ -4,12 +4,12 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.Servo;
 
-import ProgrammingBoard.ProgrammingBoardShooter;
+import ProgrammingBoard.ProgrammingBoardOTHER;
 
 @TeleOp(name="Hood and Shoot Control", group="Individual Test")
 public class ManualHoodAndShoot extends OpMode {
 
-    ProgrammingBoardShooter board = new ProgrammingBoardShooter();
+    ProgrammingBoardOTHER board = new ProgrammingBoardOTHER();
 
     private double flywheelPower = 0.1; // starting power
     private boolean spinning = false;   // flywheel state

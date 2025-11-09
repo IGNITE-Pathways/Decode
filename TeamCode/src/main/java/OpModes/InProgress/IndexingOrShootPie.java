@@ -8,6 +8,8 @@ import ProgrammingBoard.ProgrammingBoardShooter;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
 
@@ -20,7 +22,9 @@ public class IndexingOrShootPie extends LinearOpMode {
 
     ProgrammingBoardShooter board = new ProgrammingBoardShooter();
     private NormalizedColorSensor intakeColorSensor;
-    private CRServo indexServo; // ✅ New servo replacing pie motor/servo
+    private Servo indexServo; // ✅ New servo replacing pie motor/servo
+
+
 
     // Pie color pattern memory (3 slots)
     Map<Integer, String> indexColors = new HashMap<>();
@@ -32,10 +36,21 @@ public class IndexingOrShootPie extends LinearOpMode {
     int currentDivision = 0; // 0–2
     boolean imperfect = false;
 
+
+    private boolean prevA = false;
+
+    // 720° sail-winch style servo
+    private static final double MAX_DEGREES = 720.0;
+    private static final double STEP_DEGREES = 60.0;   // one press = +60°
+
+
+    // Track our target (servo only remembers last commanded position)
+    private double targetDegrees = 0.0;
+
     @Override
     public void runOpMode() {
         intakeColorSensor = hardwareMap.get(NormalizedColorSensor.class, "intakeSensor");
-        indexServo = hardwareMap.get(CRServo.class, "indexServo"); // ✅ renamed
+        indexServo = hardwareMap.get(Servo.class, "indexServo"); // ✅ renamed
 
         board.initializeComponents(hardwareMap);
 
@@ -47,6 +62,23 @@ public class IndexingOrShootPie extends LinearOpMode {
         boolean isPurple = false;
         boolean isGreen = false;
         boolean intakeJustDetectedBall = false;
+
+
+        // Initialize target from current servo position (best-effort)
+        targetDegrees = posToDeg(indexServo.getPosition());
+        // Snap within [0, 720]
+
+        targetDegrees = clampDeg(targetDegrees);
+
+        // Go to starting target (keeps telemetry consistent)
+        indexServo.setPosition(degToPos(targetDegrees));
+
+        telemetry.addLine("Ready. Press A to move +60° (positional 720° servo).");
+
+        addTelemetry();
+
+        telemetry.update();
+
 
         waitForStart();
 
@@ -85,87 +117,44 @@ public class IndexingOrShootPie extends LinearOpMode {
             // ===========================
             // A → Manually move one division
             // ===========================
-            if (gamepad1.a) {
-                currentDivision = (currentDivision + 1) % 3;
-                movePie(indexServo, 0.6, 350); // one step clockwise
+
+            boolean a = gamepad1.a;
+
+            if (a && !prevA) {
+                // increment 60°
+                targetDegrees = clampDeg(targetDegrees + STEP_DEGREES);
+                indexServo.setPosition(degToPos(targetDegrees));
             }
 
-            // ======================================
-            // X → Find & move to correct color slot
-            // ======================================
-            if (gamepad1.x) {
-                movePieToNearest(indexServo, neededBall);
+            prevA = a;
 
-                // === Shoot sequence ===
-                board.flyWheelMotor.setPower(1);
-                sleep(3000);
-                board.flyWheelMotor.setPower(0);
-
-                flag = (flag + 1) % need_colors.length;
-                imperfect = false;
-            }
-
-            telemetry.addData("Needed Ball", neededBall);
-            telemetry.addData("Division", currentDivision);
-            telemetry.addData("Pie Colors", indexColors.toString());
-            telemetry.addData("Hue", hue);
+            addTelemetry();
             telemetry.update();
+            idle();
+
         }
+
+
+    }
+    private void addTelemetry () {
+        telemetry.addData("Target°", "%.1f / %.0f", targetDegrees, MAX_DEGREES);
+        telemetry.addData("Servo pos", "%.3f", indexServo.getPosition());
+        telemetry.addLine("A: +60°   (adjust STEP_DEGREES to change increment)");
     }
 
-    /**
-     * Move the servo forward for a specific time.
-     */
-    private void movePie(CRServo servo, double power, int ms) {
-        servo.setPower(power);
-        sleep(ms);
-        servo.setPower(0);
+    // --- Helpers: angle <-> position mapping ---
+
+    private static double degToPos ( double degrees){
+        // 0..720°  ->  0.0..1.0
+        return Range.clip(degrees / MAX_DEGREES, 0.0, 1.0);
     }
 
-    /**
-     * Move the servo in the opposite direction.
-     */
-    private void movePieReverse(CRServo servo, double power, int ms) {
-        servo.setPower(-power);
-        sleep(ms);
-        servo.setPower(0);
+    private static double posToDeg ( double pos){
+        // 0.0..1.0 -> 0..720°
+        return Range.clip(pos, 0.0, 1.0) * MAX_DEGREES;
     }
 
-    /**
-     * Finds the nearest slot containing the needed color and moves to it.
-     * Only moves 1 step left, right, or none.
-     */
-    private void movePieToNearest(CRServo servo, String neededColor) {
-        int targetIndex = -1;
-
-        // Find where the needed color is stored
-        for (Map.Entry<Integer, String> entry : indexColors.entrySet()) {
-            if (entry.getValue().equals(neededColor)) {
-                targetIndex = entry.getKey();
-                break;
-            }
-        }
-
-        if (targetIndex == -1) {
-            telemetry.addData("No matching color found in pie", neededColor);
-            telemetry.update();
-            return;
-        }
-
-        // Compute distance in modular arithmetic (since circular)
-        int left = (currentDivision - targetIndex + 3) % 3;
-        int right = (targetIndex - currentDivision + 3) % 3;
-
-        if (left == 1 && right == 2) { // one step left
-            movePieReverse(servo, 0.6, 350);
-            currentDivision = (currentDivision + 2) % 3; // move left
-        } else if (right == 1 && left == 2) { // one step right
-            movePie(servo, 0.6, 350);
-            currentDivision = (currentDivision + 1) % 3; // move right
-        } else {
-            telemetry.addData("Already aligned with needed ball", neededColor);
-        }
-
-        telemetry.update();
+    private static double clampDeg ( double d){
+        return Range.clip(d, 0.0, MAX_DEGREES);
     }
 }

@@ -1,8 +1,12 @@
 package OpModes.IndividualTest;
 
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.Servo;
+
+import ProgrammingBoard.ProgrammingBoardOTHER;
 
 @TeleOp(name="Kicker Servo Control", group="Individual Test")
 public class kicker extends OpMode {
@@ -45,4 +49,5 @@ public class kicker extends OpMode {
 
         lastTriangle = gamepad1.triangle; // Update edge detection
     }
+
 }

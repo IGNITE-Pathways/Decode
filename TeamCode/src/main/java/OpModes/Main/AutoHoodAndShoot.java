@@ -5,14 +5,14 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.Servo;
-import ProgrammingBoard.ProgrammingBoardShooter;
+import ProgrammingBoard.ProgrammingBoardOTHER;
 
 @TeleOp(name = "Auto Hood and Shoot", group = "Main")
 public class AutoHoodAndShoot extends LinearOpMode {
 
     private Limelight3A limelight;
     private Servo hoodServo;
-    private ProgrammingBoardShooter board = new ProgrammingBoardShooter();
+    private ProgrammingBoardOTHER board = new ProgrammingBoardOTHER();
 
     // --- State ---
     private double servoPosition = 0.0;
