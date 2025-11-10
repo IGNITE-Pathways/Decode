@@ -28,38 +28,45 @@ public class IndexingOrShootPie2 extends LinearOpMode {
     private CRServo kickerWheel;
 
     // Ball color storage (slot 0-2 -> color)
+    // SLOT 0 = INTAKE POSITION (fixed)
+    // SLOT 1 = MIDDLE POSITION (fixed)
+    // SLOT 2 = LAUNCH POSITION (fixed)
     Map<Integer, String> ballColors = new HashMap<>();
 
-    // Expected shoot order
-    String[] need_colors = {"purple", "purple", "green"};
+    // Expected shoot order: purple, green, purple
+    String[] need_colors = {"purple", "green", "purple"};
     int indexOFBALLNEEDEDTOBELAUNCHED = 0;
 
     // ⚙️ TUNE THESE VALUES IF ALIGNMENT IS OFF ⚙️
     private static final double MAX_DEGREES = 720.0;
-    private static final double STEP_DEGREES = 60;   // Adjust this until each press = exactly 1/3 rotation
-    private static final int SERVO_MOVE_TIME_MS = 100; // Time to wait for servo to complete movement
+    private static final double STEP_DEGREES = 55.25;   // One slot rotation
+    private static final int SERVO_MOVE_TIME_MS = 600; // Time to wait for servo to complete movement
 
     private static final int NUM_SLOTS = 3;
-    private static final double INITIAL_SERVO_POSITION = 30.0;
+    private static final int INTAKE_SLOT = 0;   // Fixed intake position
+    private static final int MIDDLE_SLOT = 1;   // Fixed middle position
+    private static final int LAUNCH_SLOT = 2;   // Fixed launch position
+
+    private static final double INITIAL_SERVO_POSITION = 670;
 
     private double targetDegrees = INITIAL_SERVO_POSITION;
-    private int currentSlotAtLaunch = 0;
 
     // Kicker config
-    private static final double KICK_REST_POS = 0.50;
-    private static final double KICK_FIRE_POS = 0.00;
-    private static final int KICK_PULSE_MS = 180;
+    private static final double KICK_REST_POS = 1;
+    private static final double KICK_FIRE_POS = 0.6;
+    private static final int KICK_PULSE_MS = 1000;
 
     // Kicker wheel config
-    private static final double KICKER_WHEEL_POWER = -1;  // Negative = counterclockwise
-    private static final int KICKER_WHEEL_SPIN_TIME_MS = 2000;  // 2 seconds
+    private static final double KICKER_WHEEL_POWER = -1;
+    private static final int KICKER_WHEEL_SPIN_TIME_MS = 1000;
 
     private boolean prevA = false;
     private boolean prevB = false;
     private boolean prevX = false;
     private boolean prevY = false;
+    private boolean prevRightTrigger = false;
 
-    private boolean intakeRunning = true;
+    private boolean intakeRunning = false;
 
     private String lastAction = "Initializing...";
 
@@ -73,22 +80,21 @@ public class IndexingOrShootPie2 extends LinearOpMode {
         kicker = board.BallLauncherServo;
         kickerWheel = board.kickerWheel;
 
-        // Initialize intake (ON by default)
-        intakeServo.setPower(1.0);
-        intakeRunning = true;
+        // Initialize intake (OFF by default)
+        intakeServo.setPower(0.0);
+        intakeRunning = false;
 
         // Initialize kicker wheel (OFF by default)
         kickerWheel.setPower(0.0);
 
         // Initialize ball colors
-        ballColors.put(0, "none");
-        ballColors.put(1, "none");
-        ballColors.put(2, "none");
+        ballColors.put(INTAKE_SLOT, "none");   // Slot 0 - Intake
+        ballColors.put(MIDDLE_SLOT, "none");   // Slot 1 - Middle
+        ballColors.put(LAUNCH_SLOT, "none");   // Slot 2 - Launch
 
-        // ✅ CRITICAL: Set servo to initial position DURING INIT (before pressing PLAY)
+        // Set servo to initial position DURING INIT
         targetDegrees = INITIAL_SERVO_POSITION;
-        indexServo.setPosition(degToPos(targetDegrees));
-        currentSlotAtLaunch = 0;
+        indexServo.setPosition(degreesToPosition(targetDegrees));
 
         kicker.setPosition(KICK_REST_POS);
 
@@ -98,23 +104,12 @@ public class IndexingOrShootPie2 extends LinearOpMode {
         telemetry.addLine("   INITIALIZING SPINDEXER");
         telemetry.addLine("═══════════════════════════════════");
         telemetry.addData("Servo Target", "%.0f°", targetDegrees);
-        telemetry.addData("Status", "Moving to start position...");
+        telemetry.addData("Slot 0", "INTAKE");
+        telemetry.addData("Slot 1", "MIDDLE");
+        telemetry.addData("Slot 2", "LAUNCH");
         telemetry.update();
 
-        // ✅ Wait for servo to reach position BEFORE allowing PLAY
         sleep(1500);
-
-        lastAction = "Ready - servo at " + INITIAL_SERVO_POSITION + "°";
-        telemetry.clear();
-        telemetry.addLine("═══════════════════════════════════");
-        telemetry.addLine("   ✓ READY TO START");
-        telemetry.addLine("═══════════════════════════════════");
-        telemetry.addData("Servo Position", "%.0f°", targetDegrees);
-        telemetry.addData("Slot at Launch", "%d", currentSlotAtLaunch);
-        telemetry.addData("Intake", "ON");
-        telemetry.addLine("───────────────────────────────────");
-        telemetry.addLine("Press ▶ PLAY button to continue");
-        telemetry.update();
 
         waitForStart();
 
@@ -142,17 +137,17 @@ public class IndexingOrShootPie2 extends LinearOpMode {
         boolean b = gamepad1.b;
         boolean x = gamepad1.x;
         boolean y = gamepad1.y;
+        boolean rightTrigger = gamepad1.right_trigger > 0.5;
 
-        // A button: rotate one slot clockwise
+        // A button: rotate one slot clockwise (55.25°)
         if (a && !prevA) {
             double nextPos = targetDegrees - STEP_DEGREES;
 
-            // Check if we would exceed max range
+            // Check if we would exceed range
             if (nextPos < 0) {
-                // Would wrap - check if this is valid
                 double wrapped = nextPos + MAX_DEGREES;
                 if (wrapped > MAX_DEGREES - STEP_DEGREES) {
-                    lastAction = "⚠ AT MAX! Press Y to reset to 0°";
+                    lastAction = "⚠ AT MAX! Press Y to reset";
                 } else {
                     rotateOneSlot();
                 }
@@ -161,11 +156,12 @@ public class IndexingOrShootPie2 extends LinearOpMode {
             }
         }
 
-        // B button: kick ball with kicker wheel
+        // B button: kick ball at launch slot
         if (b && !prevB) {
-            lastAction = "Kicking ball with wheel spinning...";
+            lastAction = "Kicking ball at LAUNCH (Slot 2)...";
             kickBall();
-            lastAction = "Ball kicked from slot " + currentSlotAtLaunch;
+            ballColors.put(LAUNCH_SLOT, "none");  // Clear slot after kick
+            lastAction = "Ball kicked from Slot 2 (LAUNCH)";
         }
 
         // X button: toggle intake on/off
@@ -175,23 +171,28 @@ public class IndexingOrShootPie2 extends LinearOpMode {
             lastAction = "Intake: " + (intakeRunning ? "ON" : "OFF");
         }
 
-        // Y button: reset to 0 degrees
+        // Y button: reset to initial position
         if (y && !prevY) {
-            lastAction = "Resetting to 0°...";
-            resetToZero();
+            lastAction = "Resetting to initial position...";
+            resetToInitial();
         }
 
-        // Auto-detect and add balls
-        if (intakeRunning) {  // Only detect when intake is running
+        // RIGHT TRIGGER: HOT BUTTON - Auto-align and launch needed ball
+        if (rightTrigger && !prevRightTrigger) {
+            autoLaunchNeededBall();
+        }
+
+        // Auto-detect and add balls at INTAKE SLOT (Slot 0)
+        if (intakeRunning) {
             if (hue > 160 && hue < 350) {
-                if (!ballColors.get(currentSlotAtLaunch).equals("purple")) {
-                    ballColors.put(currentSlotAtLaunch, "purple");
-                    lastAction = "✓ PURPLE detected → Slot " + currentSlotAtLaunch;
+                if (!ballColors.get(INTAKE_SLOT).equals("purple")) {
+                    ballColors.put(INTAKE_SLOT, "purple");
+                    lastAction = "✓ PURPLE detected → Slot 0 (INTAKE)";
                 }
             } else if (hue >= 100 && hue <= 160) {
-                if (!ballColors.get(currentSlotAtLaunch).equals("green")) {
-                    ballColors.put(currentSlotAtLaunch, "green");
-                    lastAction = "✓ GREEN detected → Slot " + currentSlotAtLaunch;
+                if (!ballColors.get(INTAKE_SLOT).equals("green")) {
+                    ballColors.put(INTAKE_SLOT, "green");
+                    lastAction = "✓ GREEN detected → Slot 0 (INTAKE)";
                 }
             }
         }
@@ -200,6 +201,58 @@ public class IndexingOrShootPie2 extends LinearOpMode {
         prevB = b;
         prevX = x;
         prevY = y;
+        prevRightTrigger = rightTrigger;
+    }
+
+    /**
+     * HOT BUTTON: Auto-align needed ball to launch slot and fire
+     */
+    private void autoLaunchNeededBall() {
+        String neededColor = need_colors[indexOFBALLNEEDEDTOBELAUNCHED];
+        lastAction = "🔥 HOT BUTTON: Need " + neededColor.toUpperCase();
+
+        // Find which slot has the needed ball
+        int ballSlot = findSlotWithColor(neededColor);
+
+        if (ballSlot == -1) {
+            lastAction = "❌ ERROR: " + neededColor.toUpperCase() + " not found!";
+            return;
+        }
+
+        // Calculate rotations needed to get ball to LAUNCH_SLOT (Slot 2)
+        int rotationsNeeded = 0;
+        if (ballSlot == INTAKE_SLOT) {  // Slot 0 → Slot 2
+            rotationsNeeded = 2;
+            lastAction = "Moving ball from INTAKE → LAUNCH (2 spins)";
+        } else if (ballSlot == MIDDLE_SLOT) {  // Slot 1 → Slot 2
+            rotationsNeeded = 1;
+            lastAction = "Moving ball from MIDDLE → LAUNCH (1 spin)";
+        } else if (ballSlot == LAUNCH_SLOT) {  // Already at Slot 2
+            rotationsNeeded = 0;
+            lastAction = "Ball already at LAUNCH - firing now!";
+        }
+
+        // Rotate to bring ball to launch position
+        for (int i = 0; i < rotationsNeeded; i++) {
+            rotateOneSlot();
+            sleep(200);  // Brief pause between rotations
+        }
+
+        // Launch the ball
+        sleep(300);  // Brief pause before firing
+        lastAction = "🚀 LAUNCHING " + neededColor.toUpperCase() + "!";
+        telemetry.addData("STATUS", lastAction);
+        telemetry.update();
+
+        kickBall();
+
+        // Clear the launch slot
+        ballColors.put(LAUNCH_SLOT, "none");
+
+        // Move to next needed ball
+        indexOFBALLNEEDEDTOBELAUNCHED = (indexOFBALLNEEDEDTOBELAUNCHED + 1) % need_colors.length;
+
+        lastAction = "✓ Launched! Next: " + need_colors[indexOFBALLNEEDEDTOBELAUNCHED].toUpperCase();
     }
 
     /**
@@ -210,24 +263,47 @@ public class IndexingOrShootPie2 extends LinearOpMode {
 
         // === HEADER ===
         telemetry.addLine("╔═══════════════════════════════════╗");
-        telemetry.addLine("║      SPINDEXER CONTROL           ║");
+        telemetry.addLine("║   SPINDEXER CONTROL SYSTEM       ║");
         telemetry.addLine("╚═══════════════════════════════════╝");
         telemetry.addLine();
 
         // === SERVO POSITION ===
-        telemetry.addData("🔧 SERVO", "%.0f° / %.0f° MAX", targetDegrees, MAX_DEGREES);
-        telemetry.addData("📍 LAUNCH SLOT", ">>> SLOT %d <<<", currentSlotAtLaunch);
+        telemetry.addData("🔧 SERVO", "%.2f° / %.0f°", targetDegrees, MAX_DEGREES);
         telemetry.addLine();
 
-        // === SLOT CONTENTS ===
-        telemetry.addLine("┌─ SLOTS ─────────────────────┐");
-        for (int i = 0; i < NUM_SLOTS; i++) {
-            String color = ballColors.get(i);
-            String marker = (i == currentSlotAtLaunch) ? " ◄◄ LAUNCH" : "";
-            String display = color.equals("none") ? "EMPTY" : "●" + color.toUpperCase();
-            telemetry.addData("│ Slot " + i, display + marker);
+        // === SLOT CONTENTS (FIXED POSITIONS) ===
+        telemetry.addLine("┌─ FIXED SLOT POSITIONS ──────┐");
+
+        String slot0Color = ballColors.get(INTAKE_SLOT);
+        String slot0Display = slot0Color.equals("none") ? "EMPTY" : "●" + slot0Color.toUpperCase();
+        telemetry.addData("│ Slot 0 (INTAKE)", slot0Display);
+
+        String slot1Color = ballColors.get(MIDDLE_SLOT);
+        String slot1Display = slot1Color.equals("none") ? "EMPTY" : "●" + slot1Color.toUpperCase();
+        telemetry.addData("│ Slot 1 (MIDDLE)", slot1Display);
+
+        String slot2Color = ballColors.get(LAUNCH_SLOT);
+        String slot2Display = slot2Color.equals("none") ? "EMPTY" : "●" + slot2Color.toUpperCase();
+        telemetry.addData("│ Slot 2 (LAUNCH)", slot2Display + " ◄◄ FIRE HERE");
+
+        telemetry.addLine("└──────────────────────────────┘");
+        telemetry.addLine();
+
+        // === LAUNCH SEQUENCE ===
+        telemetry.addLine("┌─ LAUNCH SEQUENCE ────────────┐");
+        telemetry.addData("│ NEEDED BALL", ">>> " + need_colors[indexOFBALLNEEDEDTOBELAUNCHED].toUpperCase() + " <<<");
+        telemetry.addData("│ Sequence", formatLaunchSequence());
+
+        int neededSlot = findSlotWithColor(need_colors[indexOFBALLNEEDEDTOBELAUNCHED]);
+        if (neededSlot == -1) {
+            telemetry.addData("│ Status", "⚠ NOT LOADED");
+        } else if (neededSlot == LAUNCH_SLOT) {
+            telemetry.addData("│ Status", "✓ READY! Press RT");
+        } else {
+            int moves = (neededSlot == INTAKE_SLOT) ? 2 : 1;
+            telemetry.addData("│ Status", "%d spin(s) needed", moves);
         }
-        telemetry.addLine("└─────────────────────────────┘");
+        telemetry.addLine("└──────────────────────────────┘");
         telemetry.addLine();
 
         // === SENSORS & SYSTEMS ===
@@ -237,25 +313,25 @@ public class IndexingOrShootPie2 extends LinearOpMode {
         } else if (hue >= 100 && hue <= 160) {
             detected = "GREEN ●";
         }
-        telemetry.addData("🎨 COLOR", detected + " (Hue: %.0f)", hue);
+        telemetry.addData("🎨 COLOR", detected + " (%.0f)", hue);
         telemetry.addData("🔄 INTAKE", intakeRunning ? "ON ✓" : "OFF ✗");
-        telemetry.addData("⚡ KICKER", kicker.getPosition() < 0.3 ? "FIRING" : "REST");
-        telemetry.addData("⚙️ KICKER WHEEL", Math.abs(kickerWheel.getPower()) > 0.1 ? "SPINNING ⟳" : "STOPPED");
+        telemetry.addData("⚡ KICKER", kicker.getPosition() < 0.8 ? "FIRING" : "REST");
+        telemetry.addData("⚙️ WHEEL", Math.abs(kickerWheel.getPower()) > 0.1 ? "SPINNING" : "STOPPED");
         telemetry.addLine();
 
         // === CONTROLS ===
-        telemetry.addLine("┌─ CONTROLS ──────────────────┐");
-        telemetry.addData("│ [A]", gamepad1.a ? "▶ ROTATING" : "Rotate +120°");
-        telemetry.addData("│ [B]", gamepad1.b ? "▶ KICKING" : "Kick + Wheel");
-        telemetry.addData("│ [X]", gamepad1.x ? "▶ TOGGLING" : "Toggle Intake");
-        telemetry.addData("│ [Y]", gamepad1.y ? "▶ RESETTING" : "Reset to 0°");
-        telemetry.addLine("└─────────────────────────────┘");
+        telemetry.addLine("┌─ CONTROLS ───────────────────┐");
+        telemetry.addData("│ [A]", gamepad1.a ? "▶ ROTATING" : "Rotate 1 slot");
+        telemetry.addData("│ [B]", gamepad1.b ? "▶ KICKING" : "Manual kick");
+        telemetry.addData("│ [X]", gamepad1.x ? "▶ TOGGLING" : "Toggle intake");
+        telemetry.addData("│ [Y]", "Reset position");
+        telemetry.addData("│ [RT]", gamepad1.right_trigger > 0.5 ? "▶ LAUNCHING" : "🔥 AUTO LAUNCH");
+        telemetry.addLine("└──────────────────────────────┘");
         telemetry.addLine();
 
         // === LAST ACTION ===
         telemetry.addData("📋 ACTION", lastAction);
 
-        // === TUNING HINT ===
         if (targetDegrees > MAX_DEGREES - 100) {
             telemetry.addLine();
             telemetry.addLine("⚠ NEAR MAX - Press Y to reset");
@@ -263,11 +339,36 @@ public class IndexingOrShootPie2 extends LinearOpMode {
     }
 
     /**
-     * Rotate the spindexer by one slot (120° physical) clockwise
+     * Format the launch sequence with progress indicator
+     */
+    private String formatLaunchSequence() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < need_colors.length; i++) {
+            if (i == indexOFBALLNEEDEDTOBELAUNCHED) {
+                sb.append("[").append(need_colors[i].toUpperCase()).append("]");
+            } else if (i < indexOFBALLNEEDEDTOBELAUNCHED) {
+                sb.append("✓");
+            } else {
+                sb.append(need_colors[i]);
+            }
+            if (i < need_colors.length - 1) {
+                sb.append("→");
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Rotate the spindexer by one slot (55.25°) clockwise
+     * This moves balls: Slot 0→1, Slot 1→2, Slot 2→0
      */
     private void rotateOneSlot() {
         double oldTarget = targetDegrees;
-        int oldSlot = currentSlotAtLaunch;
+
+        // Save current ball positions before rotation
+        String ball0 = ballColors.get(INTAKE_SLOT);
+        String ball1 = ballColors.get(MIDDLE_SLOT);
+        String ball2 = ballColors.get(LAUNCH_SLOT);
 
         // Move servo BACKWARD by STEP_DEGREES (clockwise direction)
         targetDegrees = targetDegrees - STEP_DEGREES;
@@ -278,31 +379,28 @@ public class IndexingOrShootPie2 extends LinearOpMode {
         }
 
         // Command the servo
-        indexServo.setPosition(degToPos(targetDegrees));
+        indexServo.setPosition(degreesToPosition(targetDegrees));
 
-        // Update which slot is at launch position (cycles 0→1→2→0)
-        currentSlotAtLaunch = (currentSlotAtLaunch + 1) % NUM_SLOTS;
+        // Update ball positions after rotation (balls move clockwise through slots)
+        ballColors.put(INTAKE_SLOT, ball2);   // Ball from Launch → Intake
+        ballColors.put(MIDDLE_SLOT, ball0);   // Ball from Intake → Middle
+        ballColors.put(LAUNCH_SLOT, ball1);   // Ball from Middle → Launch
 
-        lastAction = String.format("Rotated: %.0f°→%.0f° | Slot %d→%d",
-                oldTarget, targetDegrees, oldSlot, currentSlotAtLaunch);
+        lastAction = String.format("Rotated: %.2f°→%.2f° | Balls moved", oldTarget, targetDegrees);
 
-        // ✅ CRITICAL: Wait for servo to complete movement
+        // Wait for servo to complete movement
         sleep(SERVO_MOVE_TIME_MS);
     }
 
     /**
-     * Reset servo to 0 degrees
+     * Reset servo to initial position
      */
-    private void resetToZero() {
-        targetDegrees = 0.0;
-        indexServo.setPosition(degToPos(targetDegrees));
+    private void resetToInitial() {
+        targetDegrees = INITIAL_SERVO_POSITION;
+        indexServo.setPosition(degreesToPosition(targetDegrees));
 
-        // Reset slot tracking
-        currentSlotAtLaunch = 0;
+        lastAction = "Reset complete - Servo at " + INITIAL_SERVO_POSITION + "°";
 
-        lastAction = "Reset complete - Servo at 0°, Slot 0 at launch";
-
-        // Wait for reset to complete
         sleep(1500);
     }
 
@@ -327,31 +425,38 @@ public class IndexingOrShootPie2 extends LinearOpMode {
         // Lock index servo
         indexServo.setPosition(lockPosition);
 
-        // ✅ START kicker wheel spinning counterclockwise
-        kickerWheel.setPower(KICKER_WHEEL_POWER);
-
         // Fire kicker servo
         kicker.setPosition(KICK_FIRE_POS);
+
+        // Start kicker wheel
+        kickerWheel.setPower(KICKER_WHEEL_POWER);
+
+        sleep(100);
+
+        kicker.setPosition(0.9);
+        sleep(100);
+
+        kicker.setPosition(0.3);
         sleep(KICK_PULSE_MS);
 
         // Return kicker servo to rest
         kicker.setPosition(KICK_REST_POS);
 
-        // ✅ Keep kicker wheel spinning for the full duration
+        // Keep kicker wheel spinning for full duration
         sleep(KICKER_WHEEL_SPIN_TIME_MS - KICK_PULSE_MS);
 
-        // ✅ STOP kicker wheel
+        // Stop kicker wheel
         kickerWheel.setPower(0.0);
 
         // Re-lock index servo
         indexServo.setPosition(lockPosition);
     }
 
-    private static double degToPos(double degrees) {
+    private static double degreesToPosition(double degrees) {
         return Range.clip(degrees / MAX_DEGREES, 0.0, 1.0);
     }
 
-    private static double posToDeg(double pos) {
+    private static double positionToDegrees(double pos) {
         return Range.clip(pos, 0.0, 1.0) * MAX_DEGREES;
     }
 }
