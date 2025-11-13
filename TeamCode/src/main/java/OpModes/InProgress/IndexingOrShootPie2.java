@@ -3,9 +3,12 @@ package OpModes.InProgress;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import Constants.Drive;
+import OpModes.Main.DriveTrain;
 import ProgrammingBoard.ProgrammingBoardOTHER;
 
 import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -21,10 +24,11 @@ public class IndexingOrShootPie2 extends LinearOpMode {
 
     ProgrammingBoardOTHER board = new ProgrammingBoardOTHER();
 
+    private DriveTrain driveTrain;
+
     private NormalizedColorSensor intakeColorSensor;
     private Servo indexServo;
     private CRServo intakeServo;
-    private Servo kicker;
     private CRServo kickerWheel;
 
     // Ball color storage (slot 0-2 -> color)
@@ -47,7 +51,7 @@ public class IndexingOrShootPie2 extends LinearOpMode {
     private static final int MIDDLE_SLOT = 1;   // Fixed middle position
     private static final int LAUNCH_SLOT = 2;   // Fixed launch position
 
-    private static final double INITIAL_SERVO_POSITION = 670;
+    private static final double INITIAL_SERVO_POSITION = 675;
 
     private double targetDegrees = INITIAL_SERVO_POSITION;
 
@@ -70,14 +74,17 @@ public class IndexingOrShootPie2 extends LinearOpMode {
 
     private String lastAction = "Initializing...";
 
+
+
     @Override
     public void runOpMode() {
         board.initializeComponents(hardwareMap);
 
+        driveTrain.init();
+
         intakeColorSensor = board.intakeColorSensor;
         indexServo = board.indexServo;
         intakeServo = board.intakeServo;
-        kicker = board.BallLauncherServo;
         kickerWheel = board.kickerWheel;
 
         // Initialize intake (OFF by default)
@@ -96,7 +103,6 @@ public class IndexingOrShootPie2 extends LinearOpMode {
         targetDegrees = INITIAL_SERVO_POSITION;
         indexServo.setPosition(degreesToPosition(targetDegrees));
 
-        kicker.setPosition(KICK_REST_POS);
 
         lastAction = "Servo moving to " + INITIAL_SERVO_POSITION + "°...";
 
@@ -315,7 +321,6 @@ public class IndexingOrShootPie2 extends LinearOpMode {
         }
         telemetry.addData("🎨 COLOR", detected + " (%.0f)", hue);
         telemetry.addData("🔄 INTAKE", intakeRunning ? "ON ✓" : "OFF ✗");
-        telemetry.addData("⚡ KICKER", kicker.getPosition() < 0.8 ? "FIRING" : "REST");
         telemetry.addData("⚙️ WHEEL", Math.abs(kickerWheel.getPower()) > 0.1 ? "SPINNING" : "STOPPED");
         telemetry.addLine();
 
@@ -426,26 +431,20 @@ public class IndexingOrShootPie2 extends LinearOpMode {
         indexServo.setPosition(lockPosition);
 
         // Fire kicker servo
-        kicker.setPosition(KICK_FIRE_POS);
 
         // Start kicker wheel
-        kickerWheel.setPower(KICKER_WHEEL_POWER);
+        kickerWheel.setPower(-1*KICKER_WHEEL_POWER);
 
-        sleep(100);
+        sleep(300);
 
-        kicker.setPosition(0.9);
-        sleep(100);
 
-        kicker.setPosition(0.3);
-        sleep(KICK_PULSE_MS);
-
-        // Return kicker servo to rest
-        kicker.setPosition(KICK_REST_POS);
-
-        // Keep kicker wheel spinning for full duration
-        sleep(KICKER_WHEEL_SPIN_TIME_MS - KICK_PULSE_MS);
 
         // Stop kicker wheel
+        kickerWheel.setPower(KICKER_WHEEL_POWER);
+
+        sleep(350
+        );
+
         kickerWheel.setPower(0.0);
 
         // Re-lock index servo
