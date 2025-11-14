@@ -1,60 +1,57 @@
 package OpModes.Main;
 
-import com.qualcomm.hardware.limelightvision.Limelight3A;
-import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.Gamepad;
+import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@TeleOp(name = "Mecanum Drive Simple", group = "Main")
-public class DriveTrain extends OpMode {
+// ✓ Helper class - does NOT extend OpMode
+public class DriveTrain {
 
-    DcMotor frontLeftDrive;
-    DcMotor frontRightDrive;
-    DcMotor backLeftDrive;
-    DcMotor backRightDrive;
+    private DcMotor frontLeftDrive;
+    private DcMotor frontRightDrive;
+    private DcMotor backLeftDrive;
+    private DcMotor backRightDrive;
 
-    boolean crossPressedLast = false; // To prevent retriggering
+    private Gamepad gamepad1;
+    private boolean crossPressedLast = false;
 
-    @Override
-    public void init() {
+    // Constructor accepts hardwareMap and gamepad
+    public DriveTrain(HardwareMap hardwareMap, Gamepad gamepad1) {
+        this.gamepad1 = gamepad1;
+
         frontLeftDrive = hardwareMap.get(DcMotor.class, "leftfrontmotor");
         frontRightDrive = hardwareMap.get(DcMotor.class, "rightfrontmotor");
         backLeftDrive = hardwareMap.get(DcMotor.class, "leftbackmotor");
         backRightDrive = hardwareMap.get(DcMotor.class, "rightbackmotor");
 
-        // Correct motor directions for standard mecanum
+        // Correct motor directions
         frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
         backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
         frontRightDrive.setDirection(DcMotor.Direction.FORWARD);
         backRightDrive.setDirection(DcMotor.Direction.FORWARD);
     }
 
-    @Override
+    // Call this in your main loop
     public void loop() {
-        // Check if cross is pressed and wasn't pressed last loop
+        // Check for cross button (special maneuver)
         if (gamepad1.cross && !crossPressedLast) {
-            turnAndMoveBackwardMecanum(135, 0.6, 2000); // 135° backward turn, 0.6 power, 2 seconds
+            turnAndMoveBackwardMecanum(135, 0.6, 2000);
         }
-        crossPressedLast = gamepad1.cross; // update state
+        crossPressedLast = gamepad1.cross;
 
         // Standard mecanum driving
-        double forward = -gamepad1.left_stick_y;   // forward/back
-        double right = gamepad1.left_stick_x;      // strafe
-        double rotate = gamepad1.right_stick_x;    // turn
+        double forward = -gamepad1.left_stick_y;
+        double right = gamepad1.left_stick_x * 1.1; // strafe correction
+        double rotate = gamepad1.right_stick_x;
 
-        // Optional strafe correction
-        right *= 1.1;
-
-        // Canonical mecanum wheel math
+        // Mecanum wheel math
         double frontLeftPower = forward + right + rotate;
         double frontRightPower = forward - right - rotate;
         double backLeftPower = forward - right + rotate;
         double backRightPower = forward + right - rotate;
 
-        // Normalize powers
+        // Normalize
         double max = Math.max(
                 Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower)),
                 Math.max(Math.abs(backLeftPower), Math.abs(backRightPower))
@@ -66,41 +63,29 @@ public class DriveTrain extends OpMode {
             backRightPower /= max;
         }
 
-        // Apply power directly
+        // Apply powers
         frontLeftDrive.setPower(frontLeftPower);
         frontRightDrive.setPower(frontRightPower);
         backLeftDrive.setPower(backLeftPower);
         backRightDrive.setPower(backRightPower);
-
-        // Debug telemetry
-        telemetry.addData("FL", frontLeftPower);
-        telemetry.addData("FR", frontRightPower);
-        telemetry.addData("BL", backLeftPower);
-        telemetry.addData("BR", backRightPower);
-        telemetry.update();
     }
 
-    // Function for rotating backward while moving backward along a curved path
     public void turnAndMoveBackwardMecanum(double angleDegrees, double power, long durationMs) {
         ElapsedTime timer = new ElapsedTime();
         timer.reset();
 
-        double initialTurnPower = angleDegrees / 180.0; // full rotation at start
+        double initialTurnPower = angleDegrees / 180.0;
 
-        while (opModeIsActive() && timer.milliseconds() < durationMs) {
-            double t = timer.milliseconds() / (double) durationMs; // 0.0 -> 1.0
-            double rotate = -initialTurnPower * (1.0 - t); // gradually reduce rotation
+        while (timer.milliseconds() < durationMs) {
+            double t = timer.milliseconds() / (double) durationMs;
+            double rotate = -initialTurnPower * (1.0 - t);
+            double forward = -power;
 
-            double forward = -power; // always moving backward
-            double right = 0;        // no strafe
+            double frontLeftPower = forward + rotate;
+            double frontRightPower = forward - rotate;
+            double backLeftPower = forward + rotate;
+            double backRightPower = forward - rotate;
 
-            // Mecanum wheel math for backward + turning
-            double frontLeftPower = forward + right + rotate;
-            double frontRightPower = forward - right - rotate;
-            double backLeftPower = forward - right + rotate;
-            double backRightPower = forward + right - rotate;
-
-            // Normalize powers
             double max = Math.max(
                     Math.max(Math.abs(frontLeftPower), Math.abs(frontRightPower)),
                     Math.max(Math.abs(backLeftPower), Math.abs(backRightPower))
@@ -112,22 +97,20 @@ public class DriveTrain extends OpMode {
                 backRightPower /= max;
             }
 
-            // Apply motor powers
             frontLeftDrive.setPower(frontLeftPower);
             frontRightDrive.setPower(frontRightPower);
             backLeftDrive.setPower(backLeftPower);
             backRightDrive.setPower(backRightPower);
         }
 
-        // Stop all motors after action
+        // Stop motors
+        stopMotors();
+    }
+
+    public void stopMotors() {
         frontLeftDrive.setPower(0);
         frontRightDrive.setPower(0);
         backLeftDrive.setPower(0);
         backRightDrive.setPower(0);
-    }
-
-    // Optional safety for opMode
-    public boolean opModeIsActive() {
-        return true; // In TeleOp, loop runs continuously
     }
 }

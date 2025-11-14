@@ -24,8 +24,6 @@ public class IndexingOrShootPie extends LinearOpMode {
     private NormalizedColorSensor intakeColorSensor;
     private Servo indexServo; // ✅ New servo replacing pie motor/servo
 
-
-
     // Pie color pattern memory (3 slots)
     Map<Integer, String> indexColors = new HashMap<>();
 
@@ -35,7 +33,6 @@ public class IndexingOrShootPie extends LinearOpMode {
     int flag = 0; // index in need_colors
     int currentDivision = 0; // 0–2
     boolean imperfect = false;
-
 
     private boolean prevA = false;
 

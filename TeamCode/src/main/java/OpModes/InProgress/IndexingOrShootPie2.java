@@ -24,6 +24,7 @@ public class IndexingOrShootPie2 extends LinearOpMode {
 
     ProgrammingBoardOTHER board = new ProgrammingBoardOTHER();
 
+
     private DriveTrain driveTrain;
 
     private NormalizedColorSensor intakeColorSensor;
@@ -80,7 +81,7 @@ public class IndexingOrShootPie2 extends LinearOpMode {
     public void runOpMode() {
         board.initializeComponents(hardwareMap);
 
-        driveTrain.init();
+        driveTrain = new DriveTrain(hardwareMap, gamepad1);
 
         intakeColorSensor = board.intakeColorSensor;
         indexServo = board.indexServo;
@@ -123,6 +124,9 @@ public class IndexingOrShootPie2 extends LinearOpMode {
 
         while (opModeIsActive()) {
             // Update color sensor reading
+
+            driveTrain.loop();
+
             NormalizedRGBA colors = intakeColorSensor.getNormalizedColors();
             float hue = JavaUtil.colorToHue(colors.toColor());
 
@@ -139,11 +143,11 @@ public class IndexingOrShootPie2 extends LinearOpMode {
      * Handle all button inputs
      */
     private void handleButtonInputs(float hue) {
-        boolean a = gamepad1.a;
-        boolean b = gamepad1.b;
-        boolean x = gamepad1.x;
-        boolean y = gamepad1.y;
-        boolean rightTrigger = gamepad1.right_trigger > 0.5;
+        boolean a = gamepad2.a;
+        boolean b = gamepad2.b;
+        boolean x = gamepad2.x;
+        boolean y = gamepad2.y;
+        boolean rightTrigger = gamepad2.right_trigger > 0.5;
 
         // A button: rotate one slot clockwise (55.25°)
         if (a && !prevA) {
@@ -227,6 +231,7 @@ public class IndexingOrShootPie2 extends LinearOpMode {
 
         // Calculate rotations needed to get ball to LAUNCH_SLOT (Slot 2)
         int rotationsNeeded = 0;
+
         if (ballSlot == INTAKE_SLOT) {  // Slot 0 → Slot 2
             rotationsNeeded = 2;
             lastAction = "Moving ball from INTAKE → LAUNCH (2 spins)";
@@ -265,6 +270,7 @@ public class IndexingOrShootPie2 extends LinearOpMode {
      * Simplified, real-time telemetry
      */
     private void displayTelemetry(float hue) {
+
         telemetry.clear();
 
         // === HEADER ===
@@ -326,11 +332,11 @@ public class IndexingOrShootPie2 extends LinearOpMode {
 
         // === CONTROLS ===
         telemetry.addLine("┌─ CONTROLS ───────────────────┐");
-        telemetry.addData("│ [A]", gamepad1.a ? "▶ ROTATING" : "Rotate 1 slot");
-        telemetry.addData("│ [B]", gamepad1.b ? "▶ KICKING" : "Manual kick");
-        telemetry.addData("│ [X]", gamepad1.x ? "▶ TOGGLING" : "Toggle intake");
+        telemetry.addData("│ [A]", gamepad2.a ? "▶ ROTATING" : "Rotate 1 slot");
+        telemetry.addData("│ [B]", gamepad2.b ? "▶ KICKING" : "Manual kick");
+        telemetry.addData("│ [X]", gamepad2.x ? "▶ TOGGLING" : "Toggle intake");
         telemetry.addData("│ [Y]", "Reset position");
-        telemetry.addData("│ [RT]", gamepad1.right_trigger > 0.5 ? "▶ LAUNCHING" : "🔥 AUTO LAUNCH");
+        telemetry.addData("│ [RT]", gamepad2.right_trigger > 0.5 ? "▶ LAUNCHING" : "🔥 AUTO LAUNCH");
         telemetry.addLine("└──────────────────────────────┘");
         telemetry.addLine();
 
